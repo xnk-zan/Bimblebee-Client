@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, viewport-fit=cover">
+    <title>XNK - Bimblebee</title>
+    <!-- Internal tool for the PTs: keep it out of search engines -->
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="theme-color" content="#0b0b0b">
+
+    <!-- Icons and home-screen install -->
+    <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
+    <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <!-- Start the connection to Apps Script early -->
+    <link rel="preconnect" href="https://script.google.com">
+    <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="XNK">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <script>
+        // Always HTTPS: the app sends the PT login PIN.
+        if (location.protocol === 'http:' && !/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
+            location.replace('https://' + location.host + location.pathname + location.search);
+        }
+    </script>
+    <style>
+        :root {
+            --brand: #0b0b0b;
+        }
+        /* The page itself never scrolls or bounces (no Safari pull-to-refresh,
+           no shifted page after the iPhone keyboard closes). */
+        html, body {
+            position: fixed;
+            inset: 0;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            overscroll-behavior: none;
+            background: var(--brand);
+        }
+        /* width:1px + min-width:100% stops iOS Safari from stretching the
+           iframe to its content's width and shrinking the whole page. */
+        iframe {
+            position: fixed;
+            top: 0;
+            left: 0;
+            display: block;
+            width: 1px;
+            min-width: 100%;
+            height: 100%;
+            border: 0;
+            background: #fff;
+        }
+        /* Measures the iPhone safe area (notch, home bar) for the app */
+        #sa-probe {
+            position: fixed;
+            top: 0;
+            left: 0;
+            visibility: hidden;
+            pointer-events: none;
+            padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+        }
+        /* Full-screen black panels: loading screen, no-JS note */
+        .screen {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 22px;
+            padding: 24px;
+            box-sizing: border-box;
+            background: var(--brand);
+            color: #fff;
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            text-align: center;
+            transition: opacity .5s ease, visibility .5s ease;
+        }
+        .screen[hidden] {
+            display: none;
+        }
+        .screen.done {
+            opacity: 0;
+            visibility: hidden;
+        }
+        .screen img {
+            width: 64px;
+            height: 61px;
+            animation: breathe 1.8s cubic-bezier(.2, .8, .2, 1) infinite;
+        }
+        .screen p {
+            margin: 0;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            color: #a7a7a4;
+        }
+        .screen a {
+            color: #fff;
+            font-size: 15px;
+        }
+        .screen a[hidden] {
+            display: none;
+        }
+
+        /* Loading screen: same look as the app's own start screen, so the
+           hand-over to it is seamless */
+        .bar {
+            width: 120px;
+            height: 3px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, .16);
+            overflow: hidden;
+        }
+        .bar::after {
+            content: '';
+            display: block;
+            width: 40%;
+            height: 100%;
+            border-radius: 3px;
+            background: #fff;
+            animation: sweep 1.1s cubic-bezier(.2, .8, .2, 1) infinite;
+        }
+        @keyframes sweep {
+            from { transform: translateX(-100%); }
+            to { transform: translateX(260%); }
+        }
+        @keyframes breathe {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(.94); opacity: .85; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .screen img, .bar::after { animation-duration: 2.4s; }
+        }
+    </style>
+</head>
+<body>
+
+    <iframe id="app" title="XNK – Bimblebee" src="https://script.google.com/macros/s/AKfycby3YVuDvw257lJ2uaLlHVuyC9SImplie_5r7ARkJrubMB_ft37Froe5otF1tRIbSCj-/exec?view=public"></iframe>
+
+    <div id="sa-probe" aria-hidden="true"></div>
+
+    <div class="screen" id="loader" role="status" aria-live="polite">
+        <img src="/logo.png" alt="XNK">
+        <div class="bar" aria-hidden="true"></div>
+        <p>XNK Personal Training</p>
+        <a id="fallback" target="_blank" rel="noopener" hidden>Tidak muncul? Buka di tab baru</a>
+    </div>
+
+    <noscript>
+        <div class="screen">
+            <img src="/icon-192.png" alt="XNK">
+            <p>Aktifkan JavaScript untuk membuka aplikasi ini.</p>
+        </div>
+    </noscript>
+
+    <script>
+        (function () {
+            // Login (PIN admin) happens inside the app, checked by the server.
+            // Forget the old page-level PIN (only a hash was stored).
+            try { localStorage.removeItem('xnk-pin'); } catch (e) {}
+            var app = document.getElementById('app');
+            var loader = document.getElementById('loader');
+            var fallback = document.getElementById('fallback');
+            fallback.href = app.src;
+            app.addEventListener('load', function () {
+                loader.classList.add('done');
+            });
+            setTimeout(function () {
+                fallback.hidden = false;
+            }, 8000);
+        })();
+
+        // Host bridge (iPhone/Safari). Inside an iframe iOS reports the safe area
+        // as 0 and hides the keyboard height, so this page measures both and sends
+        // plain numbers to the app. Only the app's own frame (googleusercontent.com)
+        // gets an answer; nothing private crosses this channel.
+        (function () {
+            var probe = document.getElementById('sa-probe');
+            var meta = document.querySelector('meta[name="theme-color"]');
+            var target = null, targetOrigin = '', raf = 0;
+            var ua = navigator.userAgent || '';
+            var ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            function appOrigin(o) { return /^https:\/\/[a-z0-9-]+\.googleusercontent\.com$/.test(o); }
+            function standalone() {
+                return navigator.standalone === true || !!(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+            }
+            function info() {
+                var cs = getComputedStyle(probe), vv = window.visualViewport;
+                // Keyboard = the part of the page below the visible area (not while pinch-zoomed).
+                var kb = vv && Math.abs(vv.scale - 1) < 0.01 ? document.documentElement.clientHeight - vv.height - vv.offsetTop : 0;
+                return {
+                    xnk: 'host', v: 1, ios: ios, standalone: standalone(),
+                    insets: { t: parseFloat(cs.paddingTop) || 0, r: parseFloat(cs.paddingRight) || 0, b: parseFloat(cs.paddingBottom) || 0, l: parseFloat(cs.paddingLeft) || 0 },
+                    kb: Math.max(0, Math.round(kb))
+                };
+            }
+            function send() {
+                raf = 0;
+                var d = info();
+                // iOS can leave the page shifted after the keyboard closes: put it back.
+                if (!d.kb && (window.scrollY || window.scrollX)) window.scrollTo(0, 0);
+                if (target) try { target.postMessage(d, targetOrigin); } catch (e) {}
+            }
+            function queue() { if (!raf) raf = requestAnimationFrame(send); }
+            window.addEventListener('message', function (e) {
+                if (!appOrigin(e.origin) || !e.data) return;
+                if (e.data.xnk === 'host?') { target = e.source; targetOrigin = e.origin; send(); }
+                else if (e.data.xnk === 'theme' && /^#[0-9a-f]{6}$/i.test(e.data.color || '')) {
+                    meta.setAttribute('content', e.data.color);
+                    document.documentElement.style.background = e.data.color;
+                    document.body.style.background = e.data.color;
+                }
+            });
+            window.addEventListener('resize', queue);
+            window.addEventListener('orientationchange', function () { setTimeout(queue, 300); });
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', queue);
+                window.visualViewport.addEventListener('scroll', queue);
+            }
+        })();
+    </script>
+
+</body>
+</html>
